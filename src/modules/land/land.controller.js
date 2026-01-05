@@ -16,8 +16,13 @@ export async function createLandController(req, res) {
 }
 
 export async function listLandsController(req, res) {
-  const lands = await listLands();
-  res.json(lands);
+  try {
+    const lands = await listLands();
+    res.json(lands);
+  } catch (error) {
+    console.error("Error listing lands:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 export async function getLandByIdController(req, res) {
