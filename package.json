@@ -1,0 +1,23 @@
+{
+  "name": "agri-satellite-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "@mapbox/tilebelt": "^2.0.3",
+    "@prisma/client": "^6.19.1",
+    "@turf/turf": "^7.3.1",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3",
+    "prisma": "^6.19.1",
+    "zod": "^4.3.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Land {
+  id        String   @id @default(uuid())
+  name      String
+  geometry  Json
+  createdAt DateTime @default(now())
+
+  analyses  Analysis[]
+}
+
+model Analysis {
+  id         String   @id @default(uuid())
+  landId     String
+  indexType  String
+  dateFrom   DateTime
+  dateTo     DateTime
+  status     String   @default("pending")
+  result     Json?
+  createdAt  DateTime @default(now())
+
+  land       Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+
+  @@index([landId])
+}
