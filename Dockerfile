@@ -23,4 +23,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "src/server.js"]
+# 👇 RUN MIGRATIONS THEN START SERVER
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
