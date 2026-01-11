@@ -4,19 +4,19 @@ import { getNDVITile } from "./ndvi.tiles.service.js";
 export async function ndviTileController(req, res) {
   try {
     const { landId, z, x, y } = req.params;
-    const { dateFrom, dateTo } = req.query;
+    const { dateFrom, dateTo, data } = req.query;
 
-    if (!dateFrom || !dateTo) {
-      return res.status(400).send("dateFrom and dateTo required");
-    }
+    // if (!dateFrom || !dateTo) {
+    //   return res.status(400).send("dateFrom and dateTo required");
+    // }
 
     const image = await getNDVITile({
       landId,
       z: Number(z),
       x: Number(x),
       y: Number(y),
-      dateFrom,
-      dateTo,
+      dateFrom: data,
+      dateTo: data,
     });
 
     res.set("Content-Type", "image/png");

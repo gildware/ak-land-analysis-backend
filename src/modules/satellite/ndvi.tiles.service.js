@@ -59,39 +59,6 @@ export async function getNDVITile({ landId, z, x, y, dateFrom, dateTo }) {
     evalscript: NDVI_EVALSCRIPT,
   };
 
-  //   const payload = {
-  //     input: {
-  //       bounds: {
-  //         bbox,
-  //         properties: {
-  //           crs: "http://www.opengis.net/def/crs/EPSG/0/4326",
-  //         },
-  //       },
-  //       data: [
-  //         {
-  //           type: "sentinel-2-l2a",
-  //           dataFilter: {
-  //             timeRange: {
-  //               from: dateFrom,
-  //               to: dateTo,
-  //             },
-  //             mosaickingOrder: "mostRecent",
-  //           },
-  //         },
-  //       ],
-  //     },
-  //     output: {
-  //       width: 256,
-  //       height: 256,
-  //       responses: [
-  //         {
-  //           identifier: "default",
-  //           format: { type: "image/png" },
-  //         },
-  //       ],
-  //     },
-  //     evalscript: NDVI_EVALSCRIPT,
-  //   };
   try {
     console.log("SENTINEL PAYLOAD", JSON.stringify(payload));
     const res = await axios.post(PROCESS_URL, payload, {
