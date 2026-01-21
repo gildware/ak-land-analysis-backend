@@ -1,27 +1,26 @@
 import axios from "axios";
-import { prisma } from "../../config/prisma.js";
-import { getSentinelAccessToken } from "./sentinelAuth.js";
+import { prisma } from "../../../config/prisma.js";
+import { getSentinelAccessToken } from "./../sentinelAuth.js";
 import {
   markAnalysisRunning,
   markAnalysisCompleted,
   markAnalysisFailed,
-} from "../analysis/analysis.service.js";
+} from "../../analysis/analysis.service.js";
 
 import {
   getExistingDailyIndex,
   getMissingDateRanges,
-} from "../analysis/dailyIndex.service.js";
+} from "../../analysis/dailyIndex.service.js";
 
-import { bulkInsertDailyIndex } from "../analysis/dailyIndex.repository.js";
+import { bulkInsertDailyIndex } from "../../analysis/dailyIndex.repository.js";
 
 const STATISTICS_URL = "https://services.sentinel-hub.com/api/v1/statistics";
 
-export async function runNDVIAnalysis(analysisId) {
-  console.log(`[NDVI] ▶️ Starting NDVI analysis`, { analysisId });
+export async function runNDWIAnalysis(analysisId) {
+  console.log(`[NDWI] ▶️ Starting NDWI analysis`, { analysisId });
 
   try {
     await markAnalysisRunning(analysisId);
-    console.log(`[NDVI] Status set to RUNNING`, { analysisId });
 
     const analysis = await prisma.analysis.findUnique({
       where: { id: analysisId },
@@ -34,51 +33,24 @@ export async function runNDVIAnalysis(analysisId) {
 
     const { landId, dateFrom, dateTo } = analysis;
 
-    console.log(`[NDVI] Analysis loaded`, {
-      analysisId,
-      landId,
-      dateFrom,
-      dateTo,
-    });
-
-    // 1️⃣ Load existing cached data
     const existing = await getExistingDailyIndex({
       landId,
-      indexType: "NDVI",
+      indexType: "NDWI",
       dateFrom,
       dateTo,
     });
 
-    console.log(`[NDVI] Cached daily rows found`, {
-      analysisId,
-      cachedDays: existing.length,
-    });
-
-    // 2️⃣ Detect missing ranges
     const missingRanges = getMissingDateRanges({
       dateFrom,
       dateTo,
       existingRows: existing,
     });
 
-    console.log(`[NDVI] Missing date ranges`, {
-      analysisId,
-      missingRanges,
-    });
-
-    // 3️⃣ Fetch only missing ranges
-    if (missingRanges.length > 0) {
+    if (missingRanges.length) {
       const token = await getSentinelAccessToken();
-      console.log(`[NDVI] Sentinel access token acquired`);
 
       for (const range of missingRanges) {
-        console.log(`[NDVI] Fetching NDVI stats`, {
-          analysisId,
-          from: range.from,
-          to: range.to,
-        });
-
-        const payload = buildNDVIPayload(
+        const payload = buildNDWIPayload(
           analysis.land.geometry,
           range.from,
           range.to,
@@ -91,59 +63,29 @@ export async function runNDVIAnalysis(analysisId) {
           },
         });
 
-        console.log(`[NDVI] Sentinel response received`, {
-          analysisId,
-          daysReturned: res.data?.data?.length ?? 0,
-        });
-
-        // 4️⃣ Normalize → full day coverage
-        const dailyRows = normalizeNDVIStats({
+        const rows = normalizeNDWIStats({
           landId,
-          indexType: "NDVI",
+          indexType: "NDWI",
           from: range.from,
           to: range.to,
           stats: res.data,
         });
 
-        const withData = dailyRows.filter((d) => d.data !== null).length;
-        const noData = dailyRows.length - withData;
-
-        console.log(`[NDVI] Normalized daily rows`, {
-          analysisId,
-          totalDays: dailyRows.length,
-          daysWithData: withData,
-          daysWithNoData: noData,
-        });
-
-        // 5️⃣ Persist
-        await bulkInsertDailyIndex(dailyRows);
-
-        console.log(`[NDVI] Daily NDVI rows stored`, {
-          analysisId,
-          inserted: dailyRows.length,
-        });
+        await bulkInsertDailyIndex(rows);
       }
-    } else {
-      console.log(`[NDVI] No missing ranges — cache fully satisfied`, {
-        analysisId,
-      });
     }
 
     await markAnalysisCompleted(analysisId);
-    console.log(`[NDVI] ✅ Analysis completed`, { analysisId });
+    console.log(`[NDWI] ✅ Completed`, { analysisId });
   } catch (err) {
-    console.error(`[NDVI] ❌ Analysis failed`, {
-      analysisId,
-      error: err.response?.data || err.message,
-    });
-
+    console.error(`[NDWI] ❌ Failed`, err.response?.data || err.message);
     await markAnalysisFailed(analysisId, err.message);
   }
 }
 
-/* ---------------- helpers ---------------- */
+/* ---------- helpers ---------- */
 
-function buildNDVIPayload(geometry, from, to) {
+function buildNDWIPayload(geometry, from, to) {
   return {
     input: {
       bounds: { geometry },
@@ -169,18 +111,18 @@ function buildNDVIPayload(geometry, from, to) {
         //VERSION=3
         function setup() {
           return {
-            input: [{ bands: ["B04", "B08", "dataMask"] }],
+            input: [{ bands: ["B08", "B11", "dataMask"] }],
             output: [
-              { id: "ndvi", bands: 1 },
+              { id: "ndwi", bands: 1 },
               { id: "dataMask", bands: 1 }
             ]
           };
         }
 
         function evaluatePixel(s) {
-          let ndvi = (s.B08 - s.B04) / (s.B08 + s.B04);
+          let ndwi = (s.B08 - s.B11) / (s.B08 + s.B11);
           return {
-            ndvi: [ndvi],
+            ndwi: [ndwi],
             dataMask: [s.dataMask]
           };
         }
@@ -189,14 +131,15 @@ function buildNDVIPayload(geometry, from, to) {
   };
 }
 
-function normalizeNDVIStats({ landId, indexType, from, to, stats }) {
+function normalizeNDWIStats({ landId, indexType, from, to, stats }) {
   const days = enumerateDaysUTC(from, to);
   const map = new Map();
 
   for (const d of stats.data || []) {
     const day = toUTCDay(new Date(d.interval.from));
-    const ndviStats = d.outputs?.ndvi?.bands?.B0?.stats ?? null;
-    map.set(day.getTime(), ndviStats);
+    const ndwiStats = d.outputs?.ndwi?.bands?.B0?.stats ?? null;
+
+    map.set(day.getTime(), ndwiStats);
   }
 
   return days.map((date) => ({

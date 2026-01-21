@@ -4,6 +4,9 @@ import {
   getAnalysesByLandId,
   updateAnalysisStatus,
 } from "./analysis.repository.js";
+import { runEVIAnalysis } from "../satellite/evi/evi.executor.js";
+import { runSAVIAnalysis } from "../satellite/savi/savi.executor.js";
+import { runNDWIAnalysis } from "../satellite/ndwi/ndwi.executor.js";
 
 export async function createAnalysisJob(payload) {
   const analysis = await createAnalysis({
@@ -14,9 +17,21 @@ export async function createAnalysisJob(payload) {
     status: "pending",
   });
 
-  // 🔥 Trigger async computation
-  if (payload.indexType === "NDVI") {
-    runNDVIAnalysis(analysis.id); // fire-and-forget
+  switch (payload.indexType) {
+    case "NDVI":
+      runNDVIAnalysis(analysis.id);
+      break;
+    case "EVI":
+      runEVIAnalysis(analysis.id);
+      break;
+    case "SAVI":
+      runSAVIAnalysis(analysis.id);
+      break;
+    case "NDWI":
+      runNDWIAnalysis(analysis.id);
+      break;
+    default:
+      throw new Error(`Unsupported index type: ${payload.indexType}`);
   }
 
   return analysis;
@@ -26,13 +41,13 @@ export function listAnalysesForLand(landId) {
   return getAnalysesByLandId(landId);
 }
 
-// used by executor
+// executor helpers (unchanged)
 export function markAnalysisRunning(id) {
   return updateAnalysisStatus(id, "running");
 }
 
-export function markAnalysisCompleted(id, result) {
-  return updateAnalysisStatus(id, "completed", result);
+export function markAnalysisCompleted(id) {
+  return updateAnalysisStatus(id, "completed");
 }
 
 export function markAnalysisFailed(id, error) {

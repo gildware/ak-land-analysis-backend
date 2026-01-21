@@ -1,5 +1,7 @@
 import { createAnalysisJob, listAnalysesForLand } from "./analysis.service.js";
 
+import { getDailyIndexByRange } from "./dailyIndex.repository.js";
+
 export async function createAnalysisController(req, res) {
   try {
     const { landId, indexType, dateFrom, dateTo } = req.body;
@@ -31,7 +33,32 @@ export async function listAnalysesController(req, res) {
     }
 
     const analyses = await listAnalysesForLand(landId);
-    res.json(analyses);
+
+    const enriched = await Promise.all(
+      analyses.map(async (analysis) => {
+        if (analysis.status !== "completed") {
+          return { ...analysis, result: null };
+        }
+
+        const daily = await getDailyIndexByRange({
+          landId: analysis.landId,
+          indexType: analysis.indexType,
+          dateFrom: analysis.dateFrom,
+          dateTo: analysis.dateTo,
+        });
+
+        // 🔥 result shape SAME as earlier: array of daily values
+        return {
+          ...analysis,
+          result: daily.map((d) => ({
+            date: d.date,
+            value: d.data, // stats OR null
+          })),
+        };
+      }),
+    );
+
+    res.json(enriched);
   } catch (err) {
     console.error("Fetch analyses failed:", err);
     res.status(500).json({ message: "Failed to fetch analyses" });

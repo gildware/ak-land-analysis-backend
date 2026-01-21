@@ -13,7 +13,8 @@ model Land {
   geometry  Json
   createdAt DateTime @default(now())
 
-  analyses  Analysis[]
+  analyses   Analysis[]
+  dailyIndex DailyIndex[]
 }
 
 model Analysis {
@@ -29,4 +30,18 @@ model Analysis {
   land       Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
 
   @@index([landId])
+}
+
+model DailyIndex {
+  id        String   @id @default(uuid())
+  landId    String
+  indexType String
+  date      DateTime
+  data      Json     // raw daily stats from external API
+  createdAt DateTime @default(now())
+
+  land      Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+
+  @@unique([landId, indexType, date])
+  @@index([landId, indexType, date])
 }
