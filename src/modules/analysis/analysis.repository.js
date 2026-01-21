@@ -28,3 +28,35 @@ export function updateAnalysisStatus(id, status, result = null) {
     },
   });
 }
+
+export async function getDailyDataForAnalysis({
+  landId,
+  indexType,
+  dateFrom,
+  dateTo,
+}) {
+  const [stats, rasters] = await Promise.all([
+    prisma.dailyIndex.findMany({
+      where: {
+        landId,
+        indexType,
+        date: {
+          gte: dateFrom,
+          lte: dateTo,
+        },
+      },
+    }),
+    prisma.dailyIndexRaster.findMany({
+      where: {
+        landId,
+        indexType,
+        date: {
+          gte: dateFrom,
+          lte: dateTo,
+        },
+      },
+    }),
+  ]);
+
+  return { stats, rasters };
+}
